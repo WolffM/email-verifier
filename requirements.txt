@@ -1,2 +1,2 @@
 PySocks==1.6.8
-dnspython==1.15.0
+dnspython==2.6.1
