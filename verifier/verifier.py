@@ -11,7 +11,10 @@ import smtplib
 import socks
 
 from dns import resolver
-from .socks_smtp import SocksSMTP as SMTP
+try:
+    from .socks_smtp import SocksSMTP as SMTP
+except ImportError:
+    from socks_smtp import SocksSMTP as SMTP
 
 blocked_keywords = ["spamhaus",
 			"proofpoint",
