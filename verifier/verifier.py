@@ -11,7 +11,7 @@ import smtplib
 import socks
 
 from dns import resolver
-from socks_smtp import SocksSMTP as SMTP
+from .socks_smtp import SocksSMTP as SMTP
 
 blocked_keywords = ["spamhaus",
 			"proofpoint",
@@ -161,11 +161,12 @@ class Verifier:
             test_resp = smtp.rcpt(address.addr)
             catch_all_resp = smtp.rcpt(self._random_email(address.domain))
             if test_resp[0] == 250:
-                deliverable = True
                 if catch_all_resp[0] == 250:
                     catch_all = True
+                    deliverable = False
                 else:
                     catch_all = False
+                    deliverable = True
             elif test_resp[0] >= 400:
                 raise SMTPRecepientException(*test_resp)
         return host_exists, deliverable, catch_all
@@ -202,10 +203,10 @@ class Verifier:
         for exchange in mail_exchangers:
             try:
                 host_exists, deliverable, catch_all = self._can_deliver(exchange, lookup['address'])
-                if deliverable:
-                    lookup['host_exists'] = host_exists
-                    lookup['deliverable'] = deliverable
-                    lookup['catch_all'] = catch_all
+                lookup['host_exists'] = host_exists
+                lookup['deliverable'] = deliverable
+                lookup['catch_all'] = catch_all
+                if deliverable or catch_all:
                     break
             except SMTPRecepientException as err:
                 # Error handlers return a dict that is then merged with 'lookup'

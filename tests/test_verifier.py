@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from .verifier import (Verifier,
+from verifier.verifier import (Verifier,
                        EmailFormatError,
                        SMTPRecepientException,
                        Address)
@@ -73,4 +73,58 @@ class VerifierTestCase(TestCase):
         addr = self.verifier._parse_address("user@example.com")
         m_resolver.assert_called_with('example.com', 'MX')
         m_deliver.assert_called_once_with(dns_response[0].to_text().split(), addr)
+
+    @patch.object(Verifier, '_can_deliver', return_value=(True, False, True))
+    @patch('dns.resolver.query', return_value=dns_response)
+    def test_catch_all_domain_is_not_deliverable(self, m_resolver, m_deliver):
+        """
+        When a domain is catch-all (accepts any RCPT TO), the email should
+        not be marked as deliverable since we cannot confirm the address exists.
+        This covers providers like Yahoo, Hotmail, AOL, and Outlook that accept
+        any RCPT TO to prevent email enumeration.
+        """
+        result = self.verifier.verify('user@example.com')
+        self.assertFalse(result['deliverable'])
+        self.assertTrue(result['catch_all'])
+
+    def test_can_deliver_catch_all_sets_deliverable_false(self):
+        """
+        When both the real email and a random email return 250, _can_deliver
+        should return deliverable=False and catch_all=True.
+        """
+        address = self.verifier._parse_address('user@example.com')
+        with patch('verifier.verifier.SMTP') as mock_smtp:
+            mock_instance = mock_smtp.return_value.__enter__.return_value
+            mock_instance.helo.return_value = (250, b'OK')
+            mock_instance.mail.return_value = (250, b'OK')
+            # Both real and random email return 250 (catch-all behavior)
+            mock_instance.rcpt.return_value = (250, b'OK')
+            host_exists, deliverable, catch_all = self.verifier._can_deliver(
+                ['10', 'smtp.example.com'], address
+            )
+        self.assertTrue(host_exists)
+        self.assertFalse(deliverable)
+        self.assertTrue(catch_all)
+
+    def test_can_deliver_non_catch_all_is_deliverable(self):
+        """
+        When the real email returns 250 but the random email does not,
+        _can_deliver should return deliverable=True and catch_all=False.
+        """
+        address = self.verifier._parse_address('user@example.com')
+        with patch('verifier.verifier.SMTP') as mock_smtp:
+            mock_instance = mock_smtp.return_value.__enter__.return_value
+            mock_instance.helo.return_value = (250, b'OK')
+            mock_instance.mail.return_value = (250, b'OK')
+            # Real email returns 250, random email returns 550 (non-catch-all)
+            mock_instance.rcpt.side_effect = [
+                (250, b'OK'),
+                (550, b'User unknown'),
+            ]
+            host_exists, deliverable, catch_all = self.verifier._can_deliver(
+                ['10', 'smtp.example.com'], address
+            )
+        self.assertTrue(host_exists)
+        self.assertTrue(deliverable)
+        self.assertFalse(catch_all)
         
