@@ -7,6 +7,7 @@ class SocksIMAP4(imaplib.IMAP4):
     def __init__(self,
             host='',
             port=imaplib.IMAP4_PORT,
+            timeout=None,
             proxy_type=None,
             proxy_addr=None,
             proxy_port=None,
@@ -23,7 +24,7 @@ class SocksIMAP4(imaplib.IMAP4):
         self.proxy_password = proxy_password
         self.socket_options = socket_options
 
-        super(SocksIMAP4, self).__init__(host, port)
+        super(SocksIMAP4, self).__init__(host, port, timeout)
 
     def _create_socket(self, timeout):
         if self.proxy_type:

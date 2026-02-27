@@ -3,10 +3,10 @@ import socks
 from unittest import TestCase
 from unittest.mock import patch
 
-from .verifier import (Verifier,
+from verifier.verifier import (Verifier,
                        EmailFormatError,
                        Address)
-from .socks_imap import SocksIMAP4
+from verifier.socks_imap import SocksIMAP4
 
 class Record:
     def __init__(self, preference, server):
