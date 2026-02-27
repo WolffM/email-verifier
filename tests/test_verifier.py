@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 from verifier.verifier import (Verifier,
                                EmailFormatError,
-                               SMTPRecepientException,
                                Address)
 
 class Record:
@@ -14,8 +13,8 @@ class Record:
     def to_text(self):
         return f"{self.preference} {self.server}"
 
-r1 = Record(10, f'smtp.example.com')
-r2 = Record(21, f'smtp.example.l.com')
+r1 = Record(10, 'smtp.example.com')
+r2 = Record(21, 'smtp.example.l.com')
 dns_response = [r1, r2]
 
 
