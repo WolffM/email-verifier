@@ -1,7 +1,7 @@
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
-from .verifier import (Verifier,
+from verifier.verifier import (Verifier,
                        EmailFormatError,
                        SMTPRecepientException,
                        Address)
@@ -73,4 +73,40 @@ class VerifierTestCase(TestCase):
         addr = self.verifier._parse_address("user@example.com")
         m_resolver.assert_called_with('example.com', 'MX')
         m_deliver.assert_called_once_with(dns_response[0].to_text().split(), addr)
+
+    @patch('verifier.verifier.SMTP')
+    def test_can_deliver_smtp_251_returns_deliverable(self, mock_smtp_cls):
+        # SMTP code 251 (User not local; will forward) must be treated as
+        # deliverable. Previously deliverable/catch_all were never initialised
+        # for codes other than 250 or >=400, causing an UnboundLocalError.
+        mock_smtp = MagicMock()
+        mock_smtp.__enter__ = lambda s: s
+        mock_smtp.__exit__ = MagicMock(return_value=False)
+        mock_smtp.rcpt.return_value = (251, b'User not local; will forward to <user@other.com>')
+        mock_smtp_cls.return_value = mock_smtp
+
+        address = self.verifier._parse_address('user@example.com')
+        host_exists, deliverable, catch_all = self.verifier._can_deliver(
+            ['10', 'smtp.example.com'], address
+        )
+        self.assertTrue(host_exists)
+        self.assertTrue(deliverable)
+
+    @patch('verifier.verifier.SMTP')
+    def test_can_deliver_unhandled_code_does_not_raise(self, mock_smtp_cls):
+        # Codes between 252-399 should not raise UnboundLocalError; deliverable
+        # defaults to False.
+        mock_smtp = MagicMock()
+        mock_smtp.__enter__ = lambda s: s
+        mock_smtp.__exit__ = MagicMock(return_value=False)
+        mock_smtp.rcpt.return_value = (252, b'Cannot verify user')
+        mock_smtp_cls.return_value = mock_smtp
+
+        address = self.verifier._parse_address('user@example.com')
+        host_exists, deliverable, catch_all = self.verifier._can_deliver(
+            ['10', 'smtp.example.com'], address
+        )
+        self.assertTrue(host_exists)
+        self.assertFalse(deliverable)
+        self.assertFalse(catch_all)
         
