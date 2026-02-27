@@ -11,7 +11,10 @@ import smtplib
 import socks
 
 from dns import resolver
-from .socks_smtp import SocksSMTP as SMTP
+try:
+    from .socks_smtp import SocksSMTP as SMTP
+except ImportError:  # Fallback for running this file directly
+    from socks_smtp import SocksSMTP as SMTP
 
 blocked_keywords = ["spamhaus",
 			"proofpoint",
@@ -149,6 +152,8 @@ class Verifier:
         :returns: A 3-tuple of host_exists, deliverable and catch_all
         """
         host_exists = False
+        deliverable = False
+        catch_all = False
         with SMTP(exchange[1],
                 proxy_type=self.proxy_type,
                 proxy_addr=self.proxy_addr,
@@ -206,6 +211,7 @@ class Verifier:
                 lookup['host_exists'] = host_exists
                 lookup['deliverable'] = deliverable
                 lookup['catch_all'] = catch_all
+                lookup.pop('message', None)
                 if deliverable or catch_all:
                     break
             except SMTPRecepientException as err:
