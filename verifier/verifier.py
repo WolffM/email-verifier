@@ -11,7 +11,7 @@ import smtplib
 import socks
 
 from dns import resolver
-from socks_smtp import SocksSMTP as SMTP
+from .socks_smtp import SocksSMTP as SMTP
 
 blocked_keywords = ["spamhaus",
 			"proofpoint",
@@ -101,7 +101,7 @@ class Verifier:
         if proxy_type:
             try:
                 self.proxy_type = proxy[proxy_type.lower()]
-            except KeyError as e:
+            except KeyError:
                 raise UnknownProxyError(proxy_type)
         else:
             self.proxy_type = None
@@ -149,6 +149,8 @@ class Verifier:
         :returns: A 3-tuple of host_exists, deliverable and catch_all
         """
         host_exists = False
+        deliverable = False
+        catch_all = False
         with SMTP(exchange[1],
                 proxy_type=self.proxy_type,
                 proxy_addr=self.proxy_addr,
@@ -161,11 +163,10 @@ class Verifier:
             test_resp = smtp.rcpt(address.addr)
             catch_all_resp = smtp.rcpt(self._random_email(address.domain))
             if test_resp[0] == 250:
-                deliverable = True
                 if catch_all_resp[0] == 250:
                     catch_all = True
                 else:
-                    catch_all = False
+                    deliverable = True
             elif test_resp[0] >= 400:
                 raise SMTPRecepientException(*test_resp)
         return host_exists, deliverable, catch_all
@@ -207,15 +208,18 @@ class Verifier:
                     lookup['deliverable'] = deliverable
                     lookup['catch_all'] = catch_all
                     break
+                elif catch_all:
+                    lookup['host_exists'] = host_exists
+                    lookup['catch_all'] = catch_all
             except SMTPRecepientException as err:
                 # Error handlers return a dict that is then merged with 'lookup'
                 kwargs = handle_error.get(err.code, handle_unrecognised)(err.response)
                 # This expression merges the lookup dict with kwargs
                 lookup = {**lookup, **kwargs}
 
-            except smtplib.SMTPServerDisconnected as err:
+            except smtplib.SMTPServerDisconnected:
                 lookup['message'] = "Internal Error"
-            except smtplib.SMTPConnectError as err:
+            except smtplib.SMTPConnectError:
                 lookup['message'] = "Internal Error. Maybe blacklisted"
 
         return lookup
