@@ -1,10 +1,10 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from .verifier import (Verifier,
-                       EmailFormatError,
-                       SMTPRecepientException,
-                       Address)
+from verifier.verifier import (Verifier,
+                               EmailFormatError,
+                               SMTPRecepientException,
+                               Address)
 
 class Record:
     def __init__(self, preference, server):
