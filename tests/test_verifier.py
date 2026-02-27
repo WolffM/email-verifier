@@ -81,7 +81,10 @@ class VerifierTestCase(TestCase):
         mock_smtp = MagicMock()
         mock_smtp.__enter__ = lambda s: s
         mock_smtp.__exit__ = MagicMock(return_value=False)
-        mock_smtp.rcpt.return_value = (251, b'User not local; will forward to <user@other.com>')
+        mock_smtp.rcpt.side_effect = [
+            (251, b'User not local; will forward to <user@other.com>'),
+            (550, b'User unknown'),
+        ]
         mock_smtp_cls.return_value = mock_smtp
 
         address = self.verifier._parse_address('user@example.com')
@@ -90,6 +93,7 @@ class VerifierTestCase(TestCase):
         )
         self.assertTrue(host_exists)
         self.assertTrue(deliverable)
+        self.assertFalse(catch_all)
 
     @patch('verifier.verifier.SMTP')
     def test_can_deliver_unhandled_code_does_not_raise(self, mock_smtp_cls):
