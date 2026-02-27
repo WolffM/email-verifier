@@ -101,7 +101,7 @@ class Verifier:
         if proxy_type:
             try:
                 self.proxy_type = proxy[proxy_type.lower()]
-            except KeyError as e:
+            except KeyError:
                 raise UnknownProxyError(proxy_type)
         else:
             self.proxy_type = None
@@ -217,9 +217,9 @@ class Verifier:
                 # This expression merges the lookup dict with kwargs
                 lookup = {**lookup, **kwargs}
 
-            except smtplib.SMTPServerDisconnected as err:
+            except smtplib.SMTPServerDisconnected:
                 lookup['message'] = "Internal Error"
-            except smtplib.SMTPConnectError as err:
+            except smtplib.SMTPConnectError:
                 lookup['message'] = "Internal Error. Maybe blacklisted"
 
         return lookup
